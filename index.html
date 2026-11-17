@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="Шахматы">
 <meta name="theme-color" content="#171c26">
 
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -102,7 +103,7 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute
 #moves button.cur{background:var(--panel2)}
 #moves button u{text-decoration:none;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;color:#fff;display:inline-flex;align-items:center;justify-content:center;padding:0 3px}
 #moves .empty{grid-column:1/-1;color:var(--mute);font-size:14px}
-.result{font-family:var(--display);font-size:17px;font-weight:700;margin:0 0 10px;text-wrap:balance}
+.result{word-break:keep-all;font-family:var(--display);font-size:17px;font-weight:700;margin:0 0 10px;text-wrap:balance}
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 th,td{padding:5px 4px;text-align:center;font-weight:500}
 th{font-size:12px;color:var(--mute);font-weight:600}
@@ -289,6 +290,9 @@ body[data-view="hist"] main,body[data-view="hist"] #home{display:none}
 .hrow .go{color:var(--accent);font-size:13.5px;font-weight:600;white-space:nowrap}
 .credit{color:var(--mute);font-size:12px}
 @media (min-width:900px){#home,#hist{padding:10px 28px 28px}.hhtx b{font-size:22px}}
+#ccList{display:flex;flex-direction:column;max-height:46vh;overflow-y:auto}
+textarea.inp{resize:vertical;min-height:84px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+.hrow .src{font-size:11px;font-weight:700;color:#9fd27a;background:rgba(127,166,80,.18);border-radius:6px;padding:1px 6px;margin-left:6px}
 </style>
 </head>
 <body>
@@ -305,6 +309,7 @@ body[data-view="hist"] main,body[data-view="hist"] #home{display:none}
     <button class="hcard" id="btnFriends" type="button"><span class="hic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2.5 19c.5-3 2.8-4.5 5.5-4.5s5 1.5 5.500 4.500M14.500 14.700c.5-.1 1-.2 1.500-.2 2.700 0 5 1.500 5.500 4.500"/></svg></span><span class="htx"><b>Играть с другом</b><small id="btnFriendsSub">Друзья, вызовы, чат и голос</small></span></button>
     <button class="hcard" id="hPuz" type="button"><span class="hic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.3 1 2.1h5c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></span><span class="htx"><b>Задачи</b><small id="hPuzSub"></small></span></button>
     <button class="hcard" id="hHist" type="button"><span class="hic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/></svg></span><span class="htx"><b>История партий</b><small id="hHistSub"></small></span></button>
+    <button class="hcard" id="hImport" type="button"><span class="hic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg></span><span class="htx"><b>Партии из Chess.com</b><small>Загрузить свои партии и разобрать</small></span></button>
     <button class="hcard" id="btnProfile" type="button"><span class="hic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20c.8-3.5 3.8-5.5 7.5-5.5s6.700 2 7.500 5.500"/></svg></span><span class="htx"><b>Профиль</b><small id="btnProfileSub">Статистика и код для друзей</small></span></button>
     <button class="hcard" id="hSet" type="button"><span class="hic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M16 4v4M10 10v4M18 16v4"/></svg></span><span class="htx"><b>Настройки</b><small id="hSetSub">Доска, фон, звук и голос</small></span></button>
   </div>
@@ -399,6 +404,16 @@ body[data-view="hist"] main,body[data-view="hist"] #home{display:none}
     <div class="vtest"><button class="btn" type="button" id="btnVoiceTest">Проверить голос</button><span id="voiceState"></span></div>
     <small class="credit">Фигуры: набор Chessnut, автор Alexis Luengas, лицензия Apache 2.0; цвета изменены.</small>
     <div class="row"><button class="btn primary" type="button" id="btnSetClose">Готово</button></div>
+  </div>
+</div>
+<div class="sheet" id="ccsheet" hidden>
+  <div class="panel">
+    <h3>Партии из Chess.com</h3>
+    <div class="fld"><span>Ваше имя на Chess.com</span><div class="coderow"><input class="inp" id="ccUser" maxlength="40" placeholder="Например, hikaru" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn primary" type="button" id="btnCcLoad">Загрузить</button></div></div>
+    <div class="netstate" id="ccState"></div>
+    <div id="ccList"></div>
+    <div class="fld"><span>Или вставьте PGN партии</span><textarea class="inp" id="ccPgn" rows="4" placeholder="В Chess.com: партия → Поделиться → PGN → Копировать" spellcheck="false"></textarea><div class="row"><button class="btn" type="button" id="btnPgn">Разобрать PGN</button></div></div>
+    <div class="row"><button class="btn primary" type="button" id="btnCcClose">Закрыть</button></div>
   </div>
 </div>
 <div class="sheet" id="psheet" hidden>
@@ -1550,6 +1565,97 @@ function puzTry(m){
   });
 }
 
+// ---- import games from Chess.com (public API by username, or pasted PGN)
+const SANRU={'Кр':'K','Ф':'Q','Л':'R','С':'B','К':'N'};
+function pgnHeaders(t){const h={},re=/\[(\w+)\s+"((?:[^"\\]|\\.)*)"\]/g;let m;while((m=re.exec(t)))h[m[1]]=m[2];return h;}
+function pgnTokens(t){
+  let s=t.replace(/\[[^\]]*\]/g,' ').replace(/\{[^}]*\}/g,' ').replace(/;[^\n]*/g,' ');
+  let out='',d=0;for(const ch of s){if(ch==='(')d++;else if(ch===')'){if(d>0)d--;}else if(!d)out+=ch;}
+  return out.replace(/\$\d+/g,' ').split(/\s+/).map(x=>x.replace(/^\d+\.+/,'')).filter(x=>x&&!/^\d+\.*$/.test(x)&&!/^(1-0|0-1|1\/2-1\/2|½-½|\*)$/.test(x));
+}
+function pgnMoves(t){
+  const toks=pgnTokens(t),mv=[];C.reset();
+  for(let tk of toks){
+    tk=tk.replace(/[+#!?]+$/g,'').replace(/^0-0-0$/,'O-O-O').replace(/^0-0$/,'O-O');
+    for(const k in SANRU)tk=tk.replace(new RegExp('^'+k),SANRU[k]).replace('='+k,'='+SANRU[k]);
+    const lm=C.legalMoves();
+    let m=lm.find(x=>clean(C.san(x,lm))===tk);
+    if(m==null){const t2=tk.replace(/^([a-h])x?([a-h][1-8])(?:e\.p\.)?$/,'$1x$2').replace(/([a-h][18])([QRBN])$/,'$1=$2');m=lm.find(x=>clean(C.san(x,lm))===t2);}
+    if(m==null)return {mv,bad:tk};
+    C.make(m);mv.push(m);
+  }
+  return {mv,bad:null};
+}
+const ccRes=r=>r==='1-0'?0:r==='0-1'?1:r==='1/2-1/2'?-1:null;
+function ccTermText(h){
+  const t=String(h.Termination||'');
+  if(/resign/i.test(t))return 'resign';if(/time/i.test(t)&&!/insufficient/i.test(t))return 'time';
+  if(/checkmate/i.test(t))return 'mate';if(/abandon/i.test(t))return 'abandon';
+  if(/stalemate/i.test(t))return 'stale';if(/repetition/i.test(t))return 'rep';if(/insufficient/i.test(t))return 'mat';if(/50/.test(t))return '50';if(/agreement/i.test(t))return 'agree';
+  return '';
+}
+function importPgn(text,user){
+  const h=pgnHeaders(text);
+  if(h.SetUp==='1'||h.FEN||(h.Variant&&!/standard/i.test(h.Variant)))return {err:'Партии с особой начальной позицией (Chess960 и т.п.) пока не поддерживаются.'};
+  const r=pgnMoves(text);
+  if(r.bad)return {err:'Не удалось прочитать ход «'+r.bad+'» (после '+r.mv.length+' полуходов). Проверьте PGN.'};
+  if(!r.mv.length)return {err:'В тексте не найдено ни одного хода.'};
+  const W=h.White||'Белые',B=h.Black||'Чёрные',u=String(user||me.ccUser||'').toLowerCase();
+  const color=u&&B.toLowerCase()===u?1:0,known=!!u&&(W.toLowerCase()===u||B.toLowerCase()===u);
+  const rw=ccRes(h.Result);
+  const res=rw==null?'d':rw===-1?'d':(known?(rw===color?'w':'l'):(rw===0?'w':'l'));
+  let t=Date.now();const dt=(h.UTCDate||h.Date||'').replace(/\./g,'-'),tm=h.UTCTime||h.EndTime||'';
+  if(/^\d{4}-\d\d-\d\d$/.test(dt)){const p=Date.parse(dt+'T'+(/^\d\d:\d\d:\d\d$/.test(tm)?tm:'12:00:00')+'Z');if(!isNaN(p))t=p;}
+  const key='cc:'+(h.Link||h.Site||'')+':'+W+':'+B+':'+dt+':'+r.mv.length;
+  const rec={sid:key,t,mode:'cc',src:'Chess.com',opp:known?(color?W:B):(W+' — '+B),wn:W,bn:B,known,res,acc:null,color,moves:Math.ceil(r.mv.length/2),mv:r.mv,
+    end:{t:'cc',w:rw==null||rw===-1?undefined:rw,term:ccTermText(h),r:h.Result||'*'},tc:h.TimeControl||'',elo:[h.WhiteElo||'',h.BlackElo||'']};
+  const k=stats.games.findIndex(x=>x.sid===rec.sid);
+  if(k>=0){rec.acc=stats.games[k].acc;stats.games[k]=rec;}else stats.games.push(rec);
+  if(stats.games.length>300)stats.games.shift();
+  for(let q=0;q<stats.games.length-80;q++)delete stats.games[q].mv;
+  try{localStorage.setItem('chess-coach-stats',JSON.stringify(stats));}catch(e){}
+  return {rec};
+}
+function ccTcText(tc){const m=/^(\d+)(?:\+(\d+))?$/.exec(String(tc||''));if(!m)return /^1\//.test(tc||'')?'по переписке':'';const mn=+m[1]/60;return (mn>=1?Math.round(mn):(+m[1])+' с')+(mn>=1?' мин':'')+(m[2]&&+m[2]?' + '+m[2]+' с':'');}
+let ccList=[];
+async function ccFetchJson(url){const r=await fetch(url,{headers:{Accept:'application/json'}});if(r.status===404)throw new Error('404');if(!r.ok)throw new Error('http '+r.status);return r.json();}
+async function ccLoad(){
+  const user=$('ccUser').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g,'');
+  if(!user){$('ccState').textContent='Введите имя пользователя Chess.com.';return;}
+  me.ccUser=user;saveMe();
+  $('ccState').textContent='Загружаю партии…';$('ccList').innerHTML='';$('btnCcLoad').disabled=true;
+  try{
+    const ar=await ccFetchJson('https://api.chess.com/pub/player/'+user+'/games/archives');
+    const urls=(ar.archives||[]).slice(-3).reverse();let games=[];
+    for(const u of urls){const d=await ccFetchJson(u);games=games.concat((d.games||[]).filter(g=>g.rules==='chess'&&g.pgn));if(games.length>=30)break;}
+    games.sort((a,b)=>(b.end_time||0)-(a.end_time||0));ccList=games.slice(0,40);
+    if(!ccList.length){$('ccState').textContent='Партий за последние месяцы не найдено.';return;}
+    $('ccState').textContent='Последние партии игрока '+user+'. Нажмите на партию, чтобы разобрать её.';
+    $('ccList').innerHTML=ccList.map((g,i)=>{
+      const meW=String(g.white&&g.white.username||'').toLowerCase()===user,mine=meW?g.white:g.black,opp=meW?g.black:g.white,r=mine&&mine.result;
+      const rs=r==='win'?'w':['agreed','repetition','stalemate','insufficient','50move','timevsinsufficient'].indexOf(r)>=0?'d':'l';
+      const d=new Date((g.end_time||0)*1000),dd=('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2);
+      return '<button class="hrow" type="button" data-cc="'+i+'"><span class="r '+rs+'">'+(rs==='w'?'Победа':rs==='l'?'Поражение':'Ничья')+'</span><span class="nm">'+esc(opp&&opp.username||'?')+(opp&&opp.rating?' ('+opp.rating+')':'')+'<small>'+dd+' · '+(meW?'белыми':'чёрными')+' · '+esc(ccTcText(g.time_control))+'</small></span><span class="go">Разбор ›</span></button>';
+    }).join('');
+  }catch(e){
+    $('ccState').textContent=String(e&&e.message)==='404'?'Игрок «'+user+'» на Chess.com не найден. Проверьте имя.':(IN_CLAUDE?'Внутри Claude загрузка из интернета не работает. Откройте приложение (APK, программу или сайт) или вставьте PGN ниже.':'Не удалось загрузить партии. Проверьте интернет или вставьте PGN ниже.');
+  }finally{$('btnCcLoad').disabled=false;}
+}
+function ccOpen(text,user){
+  const r=importPgn(text,user);
+  if(r.err){$('ccState').textContent=r.err;toast(r.err);return;}
+  $('ccsheet').hidden=true;openHist(r.rec.sid);
+}
+function setupImportUI(){
+  $('hImport').onclick=()=>{$('ccUser').value=me.ccUser||'';$('ccState').textContent='';$('ccList').innerHTML='';$('ccsheet').hidden=false;};
+  $('btnCcClose').onclick=()=>{$('ccsheet').hidden=true;};
+  $('ccsheet').addEventListener('click',e=>{if(e.target===$('ccsheet'))$('ccsheet').hidden=true;});
+  $('btnCcLoad').onclick=ccLoad;
+  $('ccUser').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();ccLoad();}});
+  $('ccList').addEventListener('click',e=>{const b=e.target.closest('[data-cc]');if(!b)return;const g=ccList[+b.dataset.cc];if(g)ccOpen(g.pgn,me.ccUser);});
+  $('btnPgn').onclick=()=>{const t=$('ccPgn').value;if(!t.trim()){$('ccState').textContent='Вставьте текст партии в формате PGN.';return;}ccOpen(t,$('ccUser').value.trim()||me.ccUser);};
+}
+
 // ---- state
 let cfg={mode:'coach',color:'w',level:2,live:true,autoflip:false,sound:true,voice:true,vrate:1.35,theme:'green',bg:'navy'};
 const BGS={navy:['#171c26','#243049'],graphite:['#18191c','#2c2d33'],forest:['#101814','#1f3a2c']};
@@ -1582,7 +1688,7 @@ function setView(v){
 }
 function plural(n,a,b,c){const m=n%100,k=n%10;return n+' '+((m>10&&m<20)?c:k===1?a:(k>=2&&k<=4)?b:c);}
 function renderHome(){
-  const gs=stats.games,w=gs.filter(x=>x.res==='w').length;
+  const gs=stats.games.filter(x=>x.mode!=='cc'),w=gs.filter(x=>x.res==='w').length;
   $('hAva').textContent=(me.name||'Я').trim().charAt(0).toUpperCase()||'Я';
   $('hHello').textContent=me.name?'Привет, '+me.name+'!':'Добро пожаловать!';
   $('hSubline').textContent=gs.length?plural(gs.length,'партия','партии','партий')+' · '+plural(w,'победа','победы','побед'):'Сыграйте первую партию, и здесь появится ваша статистика.';
@@ -1590,13 +1696,13 @@ function renderHome(){
   $('hContinue').hidden=!live;
   if(live)$('hContinueSub').textContent=(cfg.mode==='coach'?'С тренером · '+LEVELS[cfg.level]:cfg.mode==='net'?'С другом: '+(net&&net.opp&&net.opp.name||'друг'):'Вдвоём на одном экране')+' · ход '+(Math.floor(G.moves.length/2)+1);
   $('hPuzSub').textContent=puz.list.length?plural(puz.list.length,'задача','задачи','задач')+' из ваших ошибок':'Появятся из ошибок в ваших партиях';
-  const hn=gs.filter(x=>x.mv).length;
+  const hn=stats.games.filter(x=>x.mv).length;
   $('hHistSub').textContent=hn?plural(hn,'партия','партии','партий')+' с разбором':'Сыгранные партии с разбором';
 }
 function renderHist(){
   const gs=stats.games.slice().reverse();
   $('histList').innerHTML=gs.length?gs.map(x=>{const d=new Date(x.t),dd=('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
-    return '<button class="hrow" type="button" data-sid="'+esc(x.sid)+'"'+(x.mv?'':' disabled')+'><span class="r '+x.res+'">'+(x.res==='w'?'Победа':x.res==='l'?'Поражение':'Ничья')+'</span><span class="nm">'+esc(x.opp)+'<small>'+dd+' · '+(x.color?'чёрными':'белыми')+' · '+plural(x.moves,'ход','хода','ходов')+(x.acc!=null?' · точность '+x.acc.toFixed(1)+'%':'')+'</small></span><span class="go">'+(x.mv?'Разбор ›':'')+'</span></button>';}).join(''):'<div class="fempty">Партий пока нет. Сыграйте с тренером или с другом, и партия появится здесь.</div>';
+    return '<button class="hrow" type="button" data-sid="'+esc(x.sid)+'"'+(x.mv?'':' disabled')+'><span class="r '+x.res+'">'+(x.res==='w'?'Победа':x.res==='l'?'Поражение':'Ничья')+'</span><span class="nm">'+esc(x.opp)+(x.mode==='cc'?'<span class="src">Chess.com</span>':'')+'<small>'+dd+' · '+(x.mode==='cc'&&!x.known?'':(x.color?'чёрными':'белыми')+' · ')+plural(x.moves,'ход','хода','ходов')+(x.acc!=null?' · точность '+x.acc.toFixed(1)+'%':'')+'</small></span><span class="go">'+(x.mv?'Разбор ›':'')+'</span></button>';}).join(''):'<div class="fempty">Партий пока нет. Сыграйте с тренером или с другом, и партия появится здесь.</div>';
 }
 function openHist(sid){
   const rec=stats.games.find(x=>String(x.sid)===String(sid));if(!rec||!rec.mv)return;
@@ -1606,7 +1712,8 @@ function openHist(sid){
   C.reset();restoring=true;
   try{for(const m of rec.mv){setPos(G.moves.length);if(C.legalMoves().indexOf(m)<0)break;doMove(m,true,true,true);}}finally{restoring=false;}
   setPos(G.moves.length);checkOver();
-  if(!G.over)G.over=(rec.end&&rec.end.t)?{t:rec.end.t,w:rec.end.w}:{t:'agree'};
+  if(rec.mode==='cc')G.over=Object.assign({},rec.end);
+  else if(!G.over)G.over=(rec.end&&rec.end.t)?{t:rec.end.t,w:rec.end.w}:{t:'agree'};
   cfg.mode='rev';revRec=rec;view=G.moves.length;sel=null;hintStage=0;promoMoves=null;clearMarks();stopSay();
   setView('game');ensureAll();
 }
@@ -1629,7 +1736,7 @@ function recordGame(){
   try{localStorage.setItem('chess-coach-stats',JSON.stringify(stats));}catch(e){}
 }
 function renderProfile(){
-  const gs=stats.games,cnt=l=>{const o={n:l.length,w:0,d:0,l:0,a:0,an:0};for(const x of l){o[x.res]++;if(x.acc!=null){o.a+=x.acc;o.an++;}}o.acc=o.an?(o.a/o.an).toFixed(1)+'%':'—';return o;};
+  const gs=stats.games.filter(x=>x.mode!=='cc'),cnt=l=>{const o={n:l.length,w:0,d:0,l:0,a:0,an:0};for(const x of l){o[x.res]++;if(x.acc!=null){o.a+=x.acc;o.an++;}}o.acc=o.an?(o.a/o.an).toFixed(1)+'%':'—';return o;};
   const t=cnt(gs);
   $('pAva').textContent=(me.name||'Я').trim().charAt(0).toUpperCase()||'Я';
   $('pCode').textContent=me.id;
@@ -1803,7 +1910,7 @@ function ensureA(k){
     doneA(g,k);return g.AP[k];
   }
   const key=g.moves.slice(0,k).join(',');
-  return g.AP[k]=call({type:'analyze',moves:g.moves.slice(0,k),time:650,time2:lm.length>1?300:0}).then(r=>{
+  return g.AP[k]=call({type:'analyze',moves:g.moves.slice(0,k),time:cfg.mode==='rev'?420:650,time2:lm.length>1?(cfg.mode==='rev'?180:300):0}).then(r=>{
     if(g!==G||g.moves.length<k||g.moves.slice(0,k).join(',')!==key)return null;
     g.A[k]={best:r.best,score:r.score,second:r.second,pv:r.pv||[r.best]};
     doneA(g,k);return g.A[k];
@@ -1938,6 +2045,7 @@ async function hint(){
 
 // ---- rendering
 function nameOf(color){
+  if(cfg.mode==='rev'&&revRec&&revRec.mode==='cc'){const nm=esc(color?revRec.bn:revRec.wn),el=revRec.elo&&revRec.elo[color];return (revRec.known&&color===G.human?'Вы · ':'')+nm+(el?' ('+esc(el)+')':'');}
   if(cfg.mode==='rev')return color===G.human?'Вы':esc(revRec&&revRec.opp||'Соперник');
   if(cfg.mode==='net'){if(color===G.human)return 'Вы';const on=net&&Date.now()-net.peerSeen<12000;return esc(net&&net.opp&&net.opp.name||'Друг')+(G.over||on?'':net&&net.peerEver?' · нет связи':' · ждём');}
   if(cfg.mode==='coach')return color===G.human?'Вы':'Тренер · '+LEVELS[cfg.level];
@@ -2061,7 +2169,7 @@ function render(){
 }
 function nextErr(v){
   const g=G;
-  for(let i=v;i<g.moves.length;i++){const c=g.cls[i];if(c&&BAD.includes(c.c)&&(cfg.mode!=='coach'||(i&1)===g.human))return i+1;}
+  for(let i=v;i<g.moves.length;i++){const c=g.cls[i];if(c&&BAD.includes(c.c)&&(cfg.mode==='2p'||(cfg.mode==='rev'&&revRec&&revRec.mode==='cc'&&!revRec.known)||(i&1)===g.human))return i+1;}
   return -1;
 }
 function resultText(){
@@ -2071,6 +2179,11 @@ function resultText(){
     if(M==='net')return o.w===G.human?'Мат. Вы победили!':'Мат. Победил ваш друг.';
     if(M==='coach')return o.w===G.human?'Мат. Вы победили!':'Мат. Победил тренер.';
     return 'Мат. Победили '+(o.w?'чёрные':'белые')+'.';
+  }
+  if(o.t==='cc'){
+    const tm={resign:'сдача',time:'время',mate:'мат',abandon:'партия покинута',stale:'пат',rep:'троекратное повторение',mat:'недостаточно материала','50':'правило 50 ходов',agree:'по согласию'}[o.term]||'';
+    const who=o.w==null?'Ничья':(revRec&&revRec.known?(o.w===G.human?'Вы победили':'Победил соперник'):('Победили '+(o.w?'чёрные':'белые')));
+    return 'Партия с Chess.com, '+String(o.r||'').replace('1/2-1/2','½–½').replace('-','–')+'. '+who+(tm?' ('+tm+')':'')+'.';
   }
   if(o.t==='agree')return 'Ничья по согласию.';
   if(o.t==='time')return o.w===G.human?'У соперника закончилось время. Вы победили!':'Ваше время вышло. Победил ваш друг.';
@@ -2168,11 +2281,12 @@ function renderSummary(){
   pts+=' 100,30';
   for(let i=0;i<n;i++){const c=g.cls[i];if(c&&(BAD.includes(c.c)||c.c==='brilliant'||c.c==='great')){const x=((i+1)/n*100).toFixed(2);ticks+='<line x1="'+x+'" x2="'+x+'" y1="0" y2="30" stroke="var(--'+c.c+')" stroke-width="2" vector-effect="non-scaling-stroke"/>';}}
   const vx=(view/n*100).toFixed(2);
-  let h='<p class="result">'+resultText()+'</p><svg id="graph" viewBox="0 0 100 30" preserveAspectRatio="none" role="img" aria-label="График оценки"><polygon points="'+pts+'" fill="#f1eee6"/><line x1="0" x2="100" y1="15" y2="15" stroke="#7d8798" stroke-width="1" vector-effect="non-scaling-stroke" stroke-dasharray="3 3"/>'+ticks+'<line x1="'+vx+'" x2="'+vx+'" y1="0" y2="30" stroke="#f2b33d" stroke-width="3" vector-effect="non-scaling-stroke"/></svg><p class="gcap">График оценки: светлое выше середины — лучше белым. Цветные линии отмечают ошибки и сильные ходы. Нажмите на график, чтобы перейти к ходу.</p><table><thead><tr><th>'+(pending?'Считаю оценки…':'Разбор партии')+'</th><th>'+nameOf(0)+'</th><th>'+nameOf(1)+'</th></tr></thead><tbody>';
+  let h='<p class="result">'+resultText()+'</p><svg id="graph" viewBox="0 0 100 30" preserveAspectRatio="none" role="img" aria-label="График оценки"><polygon points="'+pts+'" fill="#f1eee6"/><line x1="0" x2="100" y1="15" y2="15" stroke="#7d8798" stroke-width="1" vector-effect="non-scaling-stroke" stroke-dasharray="3 3"/>'+ticks+'<line x1="'+vx+'" x2="'+vx+'" y1="0" y2="30" stroke="#f2b33d" stroke-width="3" vector-effect="non-scaling-stroke"/></svg><p class="gcap">График оценки: светлое выше середины — лучше белым. Цветные линии отмечают ошибки и сильные ходы. Нажмите на график, чтобы перейти к ходу.</p><table><thead><tr><th>'+(pending?'Анализ: '+g.cls.filter(Boolean).length+' из '+g.moves.length:'Разбор партии')+'</th><th>'+nameOf(0)+'</th><th>'+nameOf(1)+'</th></tr></thead><tbody>';
   h+='<tr class="acc"><td>Точность</td><td>'+acc(st[0])+'</td><td>'+acc(st[1])+'</td></tr>';
   for(const k of ORDER)h+='<tr><td><span class="k">'+badge(k)+CL[k].n+'</span></td><td>'+(st[0].k[k]||0)+'</td><td>'+(st[1].k[k]||0)+'</td></tr>';
   el.innerHTML=h+'</tbody></table>';
   recordGame();
+  if(cfg.mode==='rev'&&revRec&&revRec.mode==='cc'&&!pending&&revRec.acc==null){const sx=st[G.human];if(sx.n){revRec.acc=Math.round(sx.a/sx.n*10)/10;try{localStorage.setItem('chess-coach-stats',JSON.stringify(stats));}catch(e){}}}
 }
 
 // ---- input
@@ -2357,9 +2471,9 @@ $('form').addEventListener('submit',e=>{
   $('sheet').hidden=true;newGame();setView('game');
 });
 $('legend').innerHTML=ORDER.map(k=>'<li>'+badge(k)+'<span><b>'+CL[k].n+'.</b> '+CL[k].d+'</span></li>').join('');
-window.__chess={setView,openHist,stats:()=>stats,puz:()=>puz,puzS:()=>puzS,rtc:()=>rtc,hub:()=>hub,net:()=>net,me:()=>me,get G(){return G;},doMove,C,cfg:()=>cfg,snd,sndPlay,spoken,ctx:()=>actx,setCtx:c=>{actx=c;}};
+window.__chess={importPgn,pgnMoves,setView,openHist,stats:()=>stats,puz:()=>puz,puzS:()=>puzS,rtc:()=>rtc,hub:()=>hub,net:()=>net,me:()=>me,get G(){return G;},doMove,C,cfg:()=>cfg,snd,sndPlay,spoken,ctx:()=>actx,setCtx:c=>{actx=c;}};
 if(cfg.mode==='puz'||cfg.mode==='net'||cfg.mode==='rev')cfg.mode='coach';
-applyTheme();applyBg();setupExtraUI();
+applyTheme();applyBg();setupExtraUI();setupImportUI();
 (function(){const mq=matchMedia('(min-width:900px)'),row=document.querySelector('.coachrow'),play=document.querySelector('.play'),side=document.querySelector('.side');
   const place=()=>{if(mq.matches)side.insertBefore(row,side.firstChild);else play.insertBefore(row,document.getElementById('top'));};
   place();if(mq.addEventListener)mq.addEventListener('change',place);else if(mq.addListener)mq.addListener(place);})();
