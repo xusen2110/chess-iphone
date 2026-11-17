@@ -15,6 +15,7 @@
 
 
 
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -299,6 +300,15 @@ textarea.inp{resize:vertical;min-height:84px;font-family:ui-monospace,Menlo,Cons
 table.ext td:first-child{font-weight:600}
 table.ext u{text-decoration:none;font-size:11px;font-weight:700;width:26px;height:26px;border-radius:13px;color:#fff;display:inline-flex;align-items:center;justify-content:center}
 .exna{color:var(--mute)}
+.lbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px}
+.lbtns .btn{background:#e7e3d8;border-color:#cfc8b6;color:#1b2130;padding:6px 14px;font-size:13.5px}
+.lbtns .btn:hover{background:#ddd8ca}
+.pvline{line-height:1.9;margin-top:4px}
+.pvline .n{color:#6b7385;font-variant-numeric:tabular-nums}
+.pvline button{background:none;border:0;border-radius:6px;padding:1px 4px;font-weight:600;color:#1b2130}
+.pvline button.cur{background:#d6cfbc}
+.evc{margin-left:auto;background:#2b313d;color:#fff;border-radius:7px;padding:1px 8px;font-size:12.5px;font-variant-numeric:tabular-nums}
+.bubble.coach .lab{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
 </style>
 </head>
 <body>
@@ -1131,6 +1141,9 @@ const CL={
 const BAD=['inacc','mistake','miss','blunder'];
 const ORDER=['brilliant','great','best','excellent','good','book','inacc','mistake','miss','blunder'];
 const wp=cp=>1/(1+Math.exp(-0.00368208*Math.max(-4000,Math.min(4000,cp))));
+const wpk=(cp,k)=>1/(1+Math.exp(-k*Math.max(-4000,Math.min(4000,cp))));
+// lower-rated players convert advantages less reliably, so the same evaluation swing costs them fewer winning chances (as on Chess.com)
+function kFor(r){if(!r)return 0.00368208;r=Math.max(100,Math.min(2200,r));return 0.00368208*(0.5+0.5*(r-100)/2100);}
 const clean=s=>s.replace(/[+#]/g,'');
 
 // ---- opening book
@@ -1911,7 +1924,7 @@ function restoreGame(){
     return true;
   }catch(e){restoring=false;return false;}
 }
-function killPreview(){if(preview){clearTimeout(preview.timer);preview=null;}}
+function killPreview(){if(preview){clearTimeout(preview.timer);const r=preview.ret;preview=null;if(r!=null)view=r;}}
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const mvAnim=m=>{const f=m&127,t=(m>>7)&127,fl=(m>>17)&7,a=[[f,t]];if(fl===2)a.push([t+1,t-1]);else if(fl===3)a.push([t-2,t+1]);return a;};
 let drag=null,markOn=false,mk=null,animMoves=null,resignArm=0;const marks={sq:new Set(),ar:[]};
@@ -1946,7 +1959,7 @@ function doMove(m,noAnim,fromRedo,skipAfter){
   const recap=!!cap&&prev!=null&&((prev>>7)&127)===to&&g.info[i-1].cap>0;
   const key=(i?g.keys[i-1]+' ':'')+clean(s);
   g.sans.push(s);g.keys.push(key);
-  const hg=C.hangGain(m),sacMv=p>=2&&p<=5&&net<=-150,sacHang=hg.v>=250;
+  const hg=C.hangGain(m),sacMv=p>=2&&p<=5&&net<=-100,sacHang=hg.v>=250;
   g.info.push({piece:p,cap,net,legalN:lm.length,recap,book:bookSet.has(key),sac:sacMv||sacHang,sacT:sacMv?p:hg.t});
   C.make(m);g.moves.push(m);g.rev++;clearMarks();sel=null;hintStage=0;promoMoves=null;view=i+1;
   checkOver();
@@ -2031,16 +2044,17 @@ function classify(i){
   const g=G;if(i<0||i>=g.moves.length||g.cls[i])return;
   const a=g.A[i],b=g.A[i+1];if(!a||!b||a.terminal)return;
   const m=g.moves[i],inf=g.info[i];
+  const rr=(cfg.mode==='rev'&&revRec&&revRec.mode==='cc'&&revRec.elo)?parseInt(revRec.elo[i&1],10)||0:0,kq=kFor(rr),W=x=>wpk(x,kq);
   const sb=a.score,sm=-b.score,isBest=m===a.best||sm>=sb;
-  const loss=isBest?0:Math.max(0,wp(sb)-wp(sm));
+  const loss=isBest?0:Math.max(0,W(sb)-W(sm));
   let c=isBest?'best':loss<0.02?'excellent':loss<0.05?'good':loss<0.10?'inacc':loss<0.20?'mistake':'blunder';
   const missedMate=sb>MATE-200&&sm<MATE-200&&!isBest;
   if(missedMate&&(c==='excellent'))c='good';
   const prev=i>0?g.cls[i-1]:null;
-  if((c==='mistake'||c==='blunder')&&prev&&(prev.c==='mistake'||prev.c==='blunder')&&wp(sm)>=0.35)c='miss';
+  if((c==='mistake'||c==='blunder')&&prev&&(prev.c==='mistake'||prev.c==='blunder')&&W(sm)>=0.35)c='miss';
   if(inf.book&&loss<0.10)c='book';
-  else if((isBest||loss<0.02)&&inf.sac&&wp(sm)>=0.45&&(sm>MATE-200||!(a.second&&wp(a.second.score)>=0.97)))c='brilliant';
-  else if(m===a.best&&!b.terminal&&a.second&&inf.legalN>1&&!inf.recap&&inf.net<200&&wp(sb)>=0.35&&wp(sb)-wp(a.second.score)>=0.12)c='great';
+  else if((isBest||loss<0.02)&&inf.sac&&W(sm)>=0.45&&(sm>MATE-200||!(a.second&&W(a.second.score)>=0.97)))c='brilliant';
+  else if(m===a.best&&!b.terminal&&a.second&&inf.legalN>1&&!inf.recap&&inf.net<200&&W(sb)>=0.35&&W(sb)-W(a.second.score)>=0.12)c='great';
   const acc=c==='book'?100:Math.max(0,Math.min(100,103.1668*Math.exp(-4.354*loss)-3.1669));
   // text
   const len=g.moves.length;
@@ -2123,7 +2137,7 @@ function startPreview(){
   else if(d<=-1)out=(coach?'Здесь вы отдаёте материал':'Здесь материал отдаётся')+' ради позиции.';
   else out='Материал остаётся равным.';
   if(sc<=MATE-200)out+=' Оценка движка: '+(Math.abs(sc)<30?'примерно равно':(Math.abs(sc)/100).toFixed(1)+' '+(sc>0?(coach?'в вашу пользу':'в пользу того, кто ходит'):'в пользу соперника'))+'.';
-  preview={moves:a.pv.slice(),sans,idx:0,line:line.trim(),out,timer:null};
+  preview={base:len,moves:a.pv.slice(),sans,idx:0,line:line.trim(),out,timer:null};
   say(out);
   const step=()=>{
     if(!preview)return;
@@ -2134,6 +2148,46 @@ function startPreview(){
     }else preview.timer=setTimeout(()=>{killPreview();render();},4000);
   };
   render();preview.timer=setTimeout(step,500);
+}
+function startLine(kind,ext){
+  const g=G,v=ext?ext.ret:view;let base,a,title,from='';
+  if(kind==='cont'){base=v;a=g.A[v];title='Продолжение';from=v>0?moveNo(v-1)+ruSan(g.sans[v-1])+' ':'';}
+  else{base=v-1;a=g.A[v-1];title='Лучший вариант';}
+  if(base<0||!a||a.terminal||!a.pv||!a.pv.length)return;
+  if(ext)a=ext.a;
+  else if(a.pv.length<4&&Math.abs(a.score)<MATE-200){
+    killPreview();preview={kind:'line',base,ret:v,moves:[],sans:[],idx:0,title,from,ev:'',timer:null,busy:true};view=base;render();
+    const p0=preview,key=g.moves.slice(0,base).join(',');
+    call({type:'analyze',moves:g.moves.slice(0,base),time:1200,time2:0}).then(r=>{
+      if(preview!==p0||g!==G||g.moves.slice(0,base).join(',')!==key)return;
+      const na=(r&&r.pv&&r.pv.length>a.pv.length)?{best:r.best,score:r.score,pv:r.pv}:a;
+      preview=null;view=v;startLine(kind,{ret:v,a:na});
+    });
+    return;
+  }
+  killPreview();
+  const moves=a.pv.slice(0,7),sans=[];setPos(base);
+  for(const m of moves){sans.push(C.san(m));C.make(m);}
+  setPos(g.moves.length);
+  const sw=(base&1)?-a.score:a.score;
+  const ev=Math.abs(sw)>MATE-200?(sw>0?'+':'−')+'М'+Math.max(1,Math.ceil((MATE-Math.abs(sw))/2)):(sw>0?'+':sw<0?'−':'')+(Math.abs(sw)/100).toFixed(2).replace('.',',');
+  preview={kind:'line',base,ret:v,moves,sans,idx:0,title,from,ev,timer:null};
+  view=base;sel=null;
+  const step=()=>{
+    if(!preview||preview.kind!=='line')return;
+    if(preview.idx<preview.moves.length){
+      const m=preview.moves[preview.idx],sn=preview.sans[preview.idx];preview.idx++;
+      animMoves=mvAnim(m);snd(sn.endsWith('#')?'end':sn.endsWith('+')?'check':sn.includes('x')?'capture':'move');
+      render();preview.timer=setTimeout(step,900);
+    }
+  };
+  render();preview.timer=setTimeout(step,450);
+}
+function moveNo(ply){return (ply>>1)+1+((ply&1)?'… ':'. ');}
+function lineHtml(){
+  const p=preview;let h='';
+  p.sans.forEach((sn,j)=>{const ply=p.base+j;h+=(!(ply&1)||j===0?'<span class="n">'+moveNo(ply)+'</span>':'')+'<button type="button" data-pvj="'+j+'"'+(j===p.idx-1?' class="cur"':'')+'>'+ruSan(sn)+'</button> ';});
+  return h;
 }
 async function hint(){
   if(preview){killPreview();render();return;}
@@ -2169,7 +2223,7 @@ function badge(c){return '<u style="background:var(--'+c+')">'+CL[c].s+'</u>';}
 function render(){
   const g=G,len=g.moves.length,v=view,rev=revealed();
   setPos(v);
-  const exm=sandbox?sandbox.moves:(cfg.mode==='puz'&&puzS&&puzS.tryM!=null&&v===len)?[puzS.tryM]:(preview&&v===len?preview.moves.slice(0,preview.idx):[]);for(const xm of exm)C.make(xm);
+  const exm=sandbox?sandbox.moves:(cfg.mode==='puz'&&puzS&&puzS.tryM!=null&&v===len)?[puzS.tryM]:(preview&&v===preview.base?preview.moves.slice(0,preview.idx):[]);for(const xm of exm)C.make(xm);
   const pvN=exm.length;
   const bd=C.board,turn=C.side(),chk=C.inCheck(),can=canInput();
   const last=pvN?exm[pvN-1]:(v>0?g.moves[v-1]:null),lf=last!=null?last&127:-1,lt=last!=null?(last>>7)&127:-1;
@@ -2327,9 +2381,18 @@ function resultText(){
   }
   return {stale:'Пат. Ничья.',mat:'Ничья: мат поставить нечем.',rep:'Ничья: позиция повторилась трижды.','50':'Ничья по правилу 50 ходов.'}[o.t];
 }
+function lineBtns(i){
+  const g=G,len=g.moves.length;
+  if(!(g.over||view<len||cfg.mode==='rev'))return '';
+  if(cfg.mode==='net'&&!g.over)return '';
+  const c=g.cls[i],a1=g.A[i+1],a0=g.A[i];let h='';
+  if(a1&&!a1.terminal&&a1.pv&&a1.pv.length)h+='<button class="btn" type="button" data-line="cont">Показать</button>';
+  if(c&&a0&&a0.pv&&a0.pv.length&&['best','brilliant','great','book'].indexOf(c.c)<0)h+='<button class="btn" type="button" data-line="best">Лучший</button>';
+  return h?'<div class="lbtns">'+h+'</div>':'';
+}
 function verdict(i,who){
   const c=G.cls[i];if(!c)return '<p class="sub">Оцениваю ход '+ruSan(G.sans[i])+'…</p>';
-  return '<div class="lab"><em style="background:var(--'+c.c+')">'+CL[c.c].s+'</em>'+(who?who+': ':'')+ruSan(G.sans[i])+' · '+CL[c.c].n+'</div><p>'+c.text+'</p>';
+  return '<div class="lab"><em style="background:var(--'+c.c+')">'+CL[c.c].s+'</em>'+(who?who+': ':'')+ruSan(G.sans[i])+' · '+CL[c.c].n+'</div><p>'+c.text+'</p>'+(i===view-1?lineBtns(i):'');
 }
 function renderCoach(v,len,rev,aLive){
   const g=G;let h='';
@@ -2359,6 +2422,9 @@ function renderCoach(v,len,rev,aLive){
         sub='Оценка: '+ev+'. Лучший ход за '+(sa.turn?'чёрных':'белых')+': '+sa.bestSan+'.';}
     }
     $('coach').innerHTML='<div class="lab">Просмотр</div><p>'+(line?line.trim():'Двигайте любые фигуры, свои и соперника. Партия не изменится. «Возобновить» вернёт всё на место.')+'</p><p class="sub">'+sub+'</p>';return;
+  }
+  if(preview&&preview.kind==='line'){
+    $('coach').innerHTML='<div class="lab">'+preview.title+(preview.from?': '+preview.from:'')+(preview.ev?'<span class="evc">'+preview.ev+'</span>':'')+'</div><p class="pvline">'+(preview.busy?'Считаю вариант…':lineHtml())+'</p><div class="lbtns"><button class="btn" type="button" data-pvx="1">Вернуться</button></div>';return;
   }
   if(preview){$('coach').innerHTML='<div class="lab">Что будет дальше</div><p>'+preview.line+'</p><p class="sub">'+preview.out+'</p>';return;}
   const coach=cfg.mode==='coach';
@@ -2511,6 +2577,11 @@ $('btnHint').onclick=hint;
 $('btnUndo').onclick=undo;
 $('btnFlip').onclick=()=>{G.flip=!G.flip;render();saveGame();};
 $('btnResign').onclick=resign;
+$('coach').addEventListener('click',e=>{
+  const lb=e.target.closest('[data-line]');if(lb){startLine(lb.dataset.line);return;}
+  const pj=e.target.closest('[data-pvj]');if(pj&&preview&&preview.kind==='line'){clearTimeout(preview.timer);const j=+pj.dataset.pvj;animMoves=j===preview.idx?mvAnim(preview.moves[j]):null;preview.idx=j+1;render();return;}
+  if(e.target.closest('[data-pvx]')){killPreview();render();}
+});
 function syncSet(){
   $('setsheet').querySelectorAll('.seg[data-k]').forEach(seg=>{const k=seg.dataset.k;seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(String(cfg[k])===b.dataset.v)));});
   $('optSound').checked=!!cfg.sound;$('optVoice').checked=!!cfg.voice;
@@ -2547,6 +2618,7 @@ function plyKind(i){const sn=G.sans[i];return sn.endsWith('#')?'end':sn.endsWith
 function plyAnim(i,back){const m=G.moves[i],f=m&127,t=(m>>7)&127,fl=(m>>17)&7,a=[[f,t]];if(fl===2)a.push([t+1,t-1]);else if(fl===3)a.push([t-2,t+1]);return back?a.map(x=>[x[1],x[0]]):a;}
 const go=n=>{
   if(sandbox)return;
+  if(preview&&preview.kind==='line'){killPreview();render();return;}
   killPreview();clearPre();
   n=Math.max(0,Math.min(G.moves.length,n));if(n===view)return;
   if(n===view+1){animMoves=plyAnim(n-1,false);snd(plyKind(n-1));}
