@@ -1,5 +1,5 @@
 // Network first, cached copy when offline: the game keeps opening without a connection.
-const CACHE = 'chess-coach-v5';
+const CACHE = 'chess-coach-v6';
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
 self.addEventListener('fetch', e => {
