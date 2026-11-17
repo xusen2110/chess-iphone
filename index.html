@@ -13,6 +13,7 @@
 <meta name="theme-color" content="#171c26">
 
 
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -936,6 +937,24 @@ function ChessCore(){
     make(m);const loss=seeSq(to);unmake(m);
     return gain-loss;
   }
+  // largest material the side to move can win by capturing a minor or major piece of colour c (optionally skipping one square)
+  function hangMax(c,skip){
+    let best=0,bt=0;
+    for(let sq=0;sq<120;sq++){
+      if(sq&0x88){sq+=7;continue;}
+      const p=board[sq];if(!p||(p>>3)!==c||sq===skip)continue;
+      const t=p&7;if(t<2||t>5)continue;
+      const v=seeSq(sq);if(v>best){best=v;bt=t;}
+    }
+    return [best,bt];
+  }
+  // how much more material a move leaves en prise elsewhere on the board than was en prise before it
+  function hangGain(m){
+    const us=side,to=(m>>7)&127;
+    makeNull();const b=hangMax(us,-1);unmakeNull();
+    make(m);const a=hangMax(us,to);unmake(m);
+    return {v:a[0]-b[0],t:a[1]};
+  }
   const FILES='abcdefgh';
   function sqName(s){return FILES[s&7]+((s>>4)+1);}
   function san(m,legal){
@@ -963,7 +982,7 @@ function ChessCore(){
     return s;
   }
   reset();
-  return {board,reset,make,unmake,legalMoves,inCheck,repCount,insufficient,evaluate,searchRoot,rootScores,pvLine,moveNet,san,sqName,gen,
+  return {board,reset,make,unmake,legalMoves,inCheck,repCount,insufficient,evaluate,searchRoot,rootScores,pvLine,moveNet,hangGain,san,sqName,gen,
     side:()=>side,half:()=>half,full:()=>full,kingSq:c=>kingSq[c],MATE};
 }
 
@@ -1795,7 +1814,10 @@ function saveGame(){
   const o=G.over,end=o&&['resign','time','agree'].indexOf(o.t)>=0?{t:o.t,w:o.w}:null;
   try{localStorage.setItem('chess-coach-game',JSON.stringify({sid:gsid(),net:(cfg.mode==='net'&&net)?{role:net.role,code:net.code,hostColor:net.hostColor,gid:net.gid,opp:net.opp,tc:net.tc||null}:null,mode:cfg.mode,level:cfg.level,human:G.human,flip:G.flip,moves:G.moves,redo:G.redo,clk:G.clk||null,end,resign:o&&o.t==='resign'?o.w:null}));}catch(e){}
 }
-function ensureAll(){for(let k=0;k<=G.moves.length;k++)ensureA(k);}
+function ensureAll(){
+  for(let k=0;k<=G.moves.length;k++)ensureA(k);
+  if(G.over)for(let i=0;i<G.moves.length;i++){const c=G.cls[i],inf=G.info[i];if(c&&inf&&inf.sac&&c.c!=='brilliant'&&c.c!=='book'&&c.loss<0.15&&!(G.deep&&G.deep[i])){G.deep=G.deep||{};deepCheck(G,i);}}
+}
 function restoreGame(){
   let sv=null;try{sv=JSON.parse(localStorage.getItem('chess-coach-game')||'null');}catch(e){}
   if(!sv||!Array.isArray(sv.moves)||!sv.moves.length)return false;
@@ -1855,7 +1877,8 @@ function doMove(m,noAnim,fromRedo,skipAfter){
   const recap=!!cap&&prev!=null&&((prev>>7)&127)===to&&g.info[i-1].cap>0;
   const key=(i?g.keys[i-1]+' ':'')+clean(s);
   g.sans.push(s);g.keys.push(key);
-  g.info.push({piece:p,cap,net,legalN:lm.length,recap,book:bookSet.has(key),sac:p>=2&&p<=5&&net<=-200});
+  const hg=C.hangGain(m),sacMv=p>=2&&p<=5&&net<=-150,sacHang=hg.v>=250;
+  g.info.push({piece:p,cap,net,legalN:lm.length,recap,book:bookSet.has(key),sac:sacMv||sacHang,sacT:sacMv?p:hg.t});
   C.make(m);g.moves.push(m);g.rev++;clearMarks();sel=null;hintStage=0;promoMoves=null;view=i+1;
   checkOver();
   if(restoring){animMoves=null;return;}
@@ -1947,7 +1970,7 @@ function classify(i){
   const prev=i>0?g.cls[i-1]:null;
   if((c==='mistake'||c==='blunder')&&prev&&(prev.c==='mistake'||prev.c==='blunder')&&wp(sm)>=0.35)c='miss';
   if(inf.book&&loss<0.10)c='book';
-  else if((isBest||loss<0.02)&&inf.sac&&wp(sm)>=0.45&&wp(sb)<=0.97)c='brilliant';
+  else if((isBest||loss<0.02)&&inf.sac&&wp(sm)>=0.45&&(sm>MATE-200||!(a.second&&wp(a.second.score)>=0.97)))c='brilliant';
   else if(m===a.best&&!b.terminal&&a.second&&inf.legalN>1&&!inf.recap&&inf.net<200&&wp(sb)>=0.35&&wp(sb)-wp(a.second.score)>=0.12)c='great';
   const acc=c==='book'?100:Math.max(0,Math.min(100,103.1668*Math.exp(-4.354*loss)-3.1669));
   // text
@@ -1967,7 +1990,7 @@ function classify(i){
   let t;
   switch(c){
     case 'book':t=pick(['Ход по теории.','Так играют по учебнику.','Теоретический ход.','Дебютная теория, всё верно.'])+(op?' '+op+'.':'');break;
-    case 'brilliant':t='Блестяще! Жертва '+PN.gen[inf.piece]+' работает: принять её без потерь нельзя.';break;
+    case 'brilliant':t=(sm>MATE-200?'Блестяще! Жертва '+PN.gen[inf.sacT||inf.piece]+' ведёт к мату.':'Блестяще! Жертва '+PN.gen[inf.sacT||inf.piece]+' работает: принять её без потерь нельзя.');break;
     case 'great':t=pick(['Единственный сильный ход в позиции, остальные заметно хуже.','Вы нашли единственный ход, который держит позицию.','Сильно! Любой другой ход был бы заметно хуже.']);break;
     case 'best':t=bestText(i,m,inf,b);break;
     case 'excellent':t=pick(['Отличный ход.','Очень хорошо.','Почти идеально.','Крепкий ход.'])+' '+pick(['Движок выбрал бы '+bestSan+', разница минимальна.','Чуть-чуть точнее было '+bestSan+'.','Первый выбор движка — '+bestSan+', но ваш ход не хуже.']);break;
@@ -1978,6 +2001,7 @@ function classify(i){
     default:t=(missedMate?'Здесь был мат в '+mateN(sb)+': '+bestSan+'.':pick(['Зевок.','Грубая ошибка.','Ох, это зевок.','Серьёзный просмотр.'])+' '+pick(['Нужно было ','Правильно было ','Спасало '])+bestSan+'.')+reason;
   }
   g.cls[i]={c,loss,acc,text:t,best:a.best};
+  if(inf.sac&&c!=='brilliant'&&c!=='book'&&loss<0.15&&(cfg.mode==='rev'||cfg.mode==='2p'||g.over)&&!(g.deep||(g.deep={}))[i])deepCheck(g,i);
   puzRecord(i,c,a);
   if(cfg.mode!=='net'&&revealed()&&view===len&&i>=len-2&&i===len-1-((cfg.mode==='coach'&&(i&1)!==g.human)?0:0)){
     if(cfg.mode==='2p'||(i&1)===g.human)say(t+(g.over?' '+resultText():''));
@@ -1997,6 +2021,19 @@ function bestText(i,m,inf,b){
   if(early&&(inf.piece===2||inf.piece===3)&&((from>>4)===0||(from>>4)===7))return pick(['Хорошее развитие фигуры.','Фигура вышла в игру — так и надо в дебюте.','Развитие по всем правилам.']);
   if(early&&inf.piece===1&&[0x33,0x34,0x43,0x44].includes(to))return pick(['Пешка занимает центр — лучший ход.','Борьба за центр, всё верно.']);
   return pick(['Лучший ход в позиции.','Точно в цель.','Именно так сыграл бы движок.','Сильно сыграно.','Первый выбор движка, так держать.','Отлично, сильнее хода здесь нет.','В самую точку.']);
+}
+function deepCheck(g,i){
+  g.deep[i]=true;
+  const key=g.moves.slice(0,i+1).join(',');
+  const pre=g.moves.slice(0,i),post=g.moves.slice(0,i+1),bTerm=g.A[i+1]&&g.A[i+1].terminal;
+  Promise.all([call({type:'analyze',moves:pre,time:1800,time2:900}),bTerm?Promise.resolve(null):call({type:'analyze',moves:post,time:1800,time2:0})]).then(([ra,rb])=>{
+    if(g!==G||g.moves.slice(0,i+1).join(',')!==key||!ra||ra.best==null)return;
+    g.A[i]={best:ra.best,score:ra.score,second:ra.second,pv:ra.pv||[ra.best]};
+    if(rb&&rb.best!=null)g.A[i+1]={best:rb.best,score:rb.score,second:rb.second,pv:rb.pv||[rb.best]};
+    for(const j of [i-1,i,i+1])if(j>=0&&j<g.moves.length)g.cls[j]=null;
+    for(const j of [i-1,i,i+1])if(j>=0&&j<g.moves.length)classify(j);
+    render();
+  });
 }
 function openingAt(i){const g=G;for(let j=i;j>=0;j--){const n=bookNames.get(g.keys[j]);if(n)return n;}return '';}
 
