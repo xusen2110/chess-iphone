@@ -17,6 +17,7 @@
 
 
 
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -2010,7 +2011,8 @@ function ensureA(k){
   const g=G;if(g.AP[k])return g.AP[k];
   const len=g.moves.length;
   setPos(k);const lm=C.legalMoves(),mate=!lm.length&&C.inCheck();setPos(len);
-  if(!lm.length||(k===len&&g.over&&g.over.t!=='resign')){
+  const o=g.over,ruleDraw=k===len&&o&&(['rep','50','mat','stale'].indexOf(o.t)>=0||(o.t==='cc'&&['rep','50','mat','stale'].indexOf(o.term)>=0));
+  if(!lm.length||ruleDraw){
     g.A[k]={terminal:true,score:mate?-MATE:0};
     g.AP[k]=Promise.resolve(g.A[k]);
     doneA(g,k);return g.AP[k];
@@ -2083,7 +2085,7 @@ function classify(i){
     case 'inacc':t=pick(['Неточность.','Не самый точный ход.','Можно было точнее.','Небольшая неточность.'])+' '+pick(['Сильнее ','Лучше было ','Точнее '])+bestSan+'.'+reason;break;
     case 'mistake':t=pick(['Ошибка.','Это ошибка.','Так играть не стоило.','Неудачный ход.'])+' '+pick(['Правильно ','Нужно было ','Лучше '])+bestSan+'.'+reason;break;
     case 'miss':t='Упущенный шанс. Соперник ошибся, и '+bestSan+' давало перевес.';break;
-    default:t=(missedMate?'Здесь был мат в '+mateN(sb)+': '+bestSan+'.':pick(['Зевок.','Грубая ошибка.','Ох, это зевок.','Серьёзный просмотр.'])+' '+pick(['Нужно было ','Правильно было ','Спасало '])+bestSan+'.')+reason;
+    default:t=(missedMate?'Здесь был мат в '+mateN(sb)+': '+bestSan+'.':pick(['Зевок.','Грубая ошибка.','Ох, это зевок.','Серьёзный просмотр.'])+' '+pick(['Нужно было ','Правильно было ',(W(sb)<0.45?'Спасало ':'Сильнее было ')])+bestSan+'.')+reason;
   }
   g.cls[i]={c,loss,acc,text:t,best:a.best};
   if(inf.sac&&c!=='brilliant'&&c!=='book'&&loss<0.15&&(cfg.mode==='rev'||cfg.mode==='2p'||g.over)&&!(g.deep||(g.deep={}))[i])deepCheck(g,i);
